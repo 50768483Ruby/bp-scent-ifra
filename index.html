@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ruby 调香合规工作台 — IFRA Compliance Tool</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f0eb;color:#3d3226;line-height:1.6}
+.header{background:linear-gradient(135deg,#8b5e3c 0%,#6b3a2a 100%);color:#fff;padding:20px 0;text-align:center}
+.header h1{font-size:1.6em;letter-spacing:.05em}
+.header p{opacity:.85;font-size:.9em;margin-top:4px}
+.container{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.card h2{font-size:1.1em;color:#6b3a2a;margin-bottom:12px;border-bottom:2px solid #e8d5c4;padding-bottom:8px}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.form-group{display:flex;flex-direction:column;min-width:160px}
+.form-group label{font-size:.8em;font-weight:600;color:#8b7355;margin-bottom:4px}
+select,input[type=text],input[type=number]{padding:8px 12px;border:1.5px solid #d4c4b0;border-radius:8px;font-size:.9em;background:#fdfaf7;color:#3d3226;transition:border .2s}
+select:focus,input:focus{outline:none;border-color:#8b5e3c;box-shadow:0 0 0 3px rgba(139,94,60,.1)}
+input[type=number]{width:90px}
+.btn{padding:10px 20px;border:none;border-radius:8px;font-size:.9em;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:#8b5e3c;color:#fff}
+.btn-primary:hover{background:#6b3a2a}
+.btn-outline{background:#fff;color:#8b5e3c;border:1.5px solid #8b5e3c}
+.btn-outline:hover{background:#fdf5ee}
+.btn-danger{background:#fff;color:#c0392b;border:1.5px solid #c0392b;padding:2px 8px;font-size:.75em}
+.btn-danger:hover{background:#fef0ef}
+.btn-sm{padding:4px 10px;font-size:.8em}
+.ingredient-row{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f0ebe3}
+.ingredient-row:last-child{border-bottom:none}
+.ingredient-row .name{flex:1;font-weight:500}
+.ingredient-row .type-badge{font-size:.7em;padding:2px 8px;border-radius:12px;font-weight:600}
+.type-synthetic{background:#e8f4e8;color:#2d7d2d}
+.type-base{background:#e8e0f4;color:#5b3d8b}
+.type-custom{background:#fef9e7;color:#b8860b}
+table{width:100%;border-collapse:collapse;font-size:.85em;margin-top:8px}
+th{background:#f5f0eb;color:#6b3a2a;font-weight:700;padding:10px 8px;text-align:left;position:sticky;top:0}
+td{padding:8px;border-bottom:1px solid #f0ebe3}
+tr:hover{background:#fdfaf7}
+.violation-row{background:#fff5f5!important}
+.violation-row td:first-child{border-left:3px solid #e74c3c}
+.pass-bar{display:inline-block;height:8px;border-radius:4px;background:#27ae60;min-width:2px}
+.pass-bar-bg{display:inline-block;width:80px;height:8px;border-radius:4px;background:#e8e8e8;margin-right:6px;vertical-align:middle}
+.category-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;margin-top:8px}
+.cat-chip{padding:6px 10px;border-radius:8px;font-size:.75em;text-align:center;border:1.5px solid #e8d5c4;cursor:pointer;transition:all .2s}
+.cat-chip:hover{background:#fdf5ee;border-color:#8b5e3c}
+.cat-chip.selected{background:#8b5e3c;color:#fff;border-color:#8b5e3c;font-weight:700}
+.cat-chip .limit{display:block;font-size:1.1em;font-weight:700;margin-top:2px}
+.verdict{text-align:center;padding:24px;border-radius:12px;margin:16px 0}
+.verdict.pass{background:#eafaf1;border:2px solid #27ae60}
+.verdict.fail{background:#fdedec;border:2px solid #e74c3c}
+.verdict .icon{font-size:2.5em}
+.verdict .msg{font-size:1.2em;font-weight:700;margin:8px 0}
+.tabs{display:flex;gap:0;margin-bottom:0}
+.tab{padding:10px 20px;background:#f5f0eb;border:1px solid #e8d5c4;border-bottom:none;border-radius:8px 8px 0 0;cursor:pointer;font-weight:600;font-size:.85em;color:#8b7355;margin-right:2px}
+.tab.active{background:#fff;color:#6b3a2a;border-bottom:2px solid #fff;margin-bottom:-1px}
+.tab-content{display:none;border:1px solid #e8d5c4;border-radius:0 8px 8px 8px;padding:16px;background:#fff}
+.tab-content.active{display:block}
+.limiter-box{background:#fef9e7;border:1px solid #f0d78c;border-radius:8px;padding:12px;margin:8px 0;font-size:.85em}
+.limiter-box strong{color:#b8860b}
+.note{font-size:.75em;color:#999;margin-top:4px;font-style:italic}
+
+
+
+
+/* Shopping Cart */
+.cart-fab{position:fixed;top:90px;right:20px;z-index:900;background:#fff;color:#6b3a2a;border:2px solid #6b3a2a;border-radius:50px;padding:10px 18px;font-size:.95em;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.15);transition:all .25s;display:flex;align-items:center;gap:6px}
+.cart-fab:hover{background:#fdf5ee;transform:translateY(-2px)}
+.cart-fab .badge{background:#e74c3c;color:#fff;font-weight:700;border-radius:50%;min-width:22px;height:22px;font-size:.7em;display:none;align-items:center;justify-content:center}
+.cart-panel{position:fixed;top:0;right:-400px;width:380px;max-width:90vw;height:100vh;background:#fff;z-index:901;box-shadow:-4px 0 24px rgba(0,0,0,.15);transition:right .3s ease;display:flex;flex-direction:column}
+.cart-panel.show{right:0}
+.cart-panel-header{background:#6b3a2a;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}
+.cart-close{background:none;border:none;color:#fff;font-size:1.4em;cursor:pointer}
+.cart-list{flex:1;overflow-y:auto;padding:12px}
+.cart-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #f0ebe3;align-items:center;font-size:.9em}
+.cart-item-name{flex:1;font-weight:600}
+.cart-item-spec select,.cart-item-spec input{font-size:.75em;padding:4px 6px;border:1px solid #d4c4b0;border-radius:6px;margin:0 4px}
+.cart-item-spec input{width:45px;text-align:center}
+.cart-remove{background:none;border:none;color:#c0392b;cursor:pointer;font-size:1em;padding:4px}
+.cart-footer{padding:16px 20px;border-top:2px solid #e8d5c4;background:#fdfaf7}
+
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🧪 Ruby 调香合规工作台</h1>
+  <p>进阶班+高阶班 · IFRA 51st Amendment · 全12类目 · 184种原料</p>
+</div>
+
+<!-- ========== FORMULA BUILDER ========== -->
+<div class="card">
+  <h2>📝 配方构建</h2>
+  <div class="form-row">
+    <div class="form-group" style="min-width:200px">
+      <label>配方名称</label>
+      <input type="text" id="formulaName" value="初夏白花淡香精" placeholder="输入配方名称">
+    </div>
+    <div class="form-group">
+      <label>默认产品类型</label>
+      <select id="defaultCategory">
+        <option value="4" selected>Cat.4 — 香水/淡香精 (EDP/EDT)</option>
+        <option value="3">Cat.3 — 水醇类洗去型 (洗手液等)</option>
+        <option value="5A">Cat.5A — 身体乳 (驻留型)</option>
+        <option value="5B">Cat.5B — 面霜 (驻留型)</option>
+        <option value="5C">Cat.5C — 手霜 (驻留型)</option>
+        <option value="8">Cat.8 — 沐浴露/洗发水 (洗去型)</option>
+        <option value="9">Cat.9 — 香皂 (洗去型)</option>
+        <option value="12">Cat.12 — 蜡烛</option>
+        <option value="11A">Cat.11A — 空气喷雾</option>
+        <option value="11B">Cat.11B — 藤条扩香</option>
+        <option value="10A">Cat.10A — 硬表面清洁剂</option>
+        <option value="1">Cat.1 — 唇部产品</option>
+        <option value="2">Cat.2 — 止汗/体香剂</option>
+        <option value="6">Cat.6 — 漱口水/牙膏</option>
+        <option value="7A">Cat.7A — 护发素(驻留)</option>
+        <option value="7B">Cat.7B — 洗发水(洗去)</option>
+      </select>
+    </div>
+    <div class="form-group" style="min-width:300px">
+      <label>添加原料 <span style="font-weight:400;font-size:.75em;color:#999">(共184种)</span></label>
+      <input type="text" id="ingredientSearch" placeholder="🔍 搜索原料名/拼音/CAS..." 
+             style="width:100%;margin-bottom:4px" oninput="filterIngredients()">
+      <div id="abcFilters" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px"></div>
+      <select id="ingredientSelect" style="min-width:300px;max-height:200px" size="8">
+        <option value="">— 搜索或选择原料 —</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>用量 (%)</label>
+      <input type="number" id="ingredientPct" value="1.0" step="0.1" min="0.01" max="100">
+    </div>
+    <button class="btn btn-primary" onclick="addIngredient()">+ 添加</button>
+    <button class="btn btn-outline btn-sm" onclick="addIngredientToCart()">🛒 加入购物车</button>
+    
+    <button class="btn btn-outline btn-sm" onclick="addCustomIngredient()">✎ 自定义原料</button>
+  </div>
+
+  <div id="formulaList" style="margin-top:12px">
+    <p style="color:#999;font-size:.85em">尚未添加原料。请从原料库选择或添加自定义原料。</p>
+  </div>
+
+  <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+    <button class="btn btn-primary" onclick="runCheck()" style="font-size:1em;padding:12px 32px">🔍 检查合规性（全部12类目）</button>
+    <span id="totalPct" style="color:#999;font-size:.85em"></span>
+    
+  </div>
+</div>
+
+<!-- ========== RESULTS ========== -->
+<div id="results" style="display:none">
+
+  <!-- Verdict -->
+  <div id="verdictBox"></div>
+
+  <!-- Tabs for different views -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('overview')">📊 12类目总览</div>
+    <div class="tab" onclick="switchTab('detail')">🔍 单类目详情</div>
+    <div class="tab" onclick="switchTab('limiters')">🔑 基底限制因子</div>
+  </div>
+
+  <!-- Tab: 12 Category Overview -->
+  <div class="tab-content active" id="tab-overview">
+    <p style="font-size:.85em;color:#8b7355;margin-bottom:8px">
+      配方在全部12个IFRA类目下的合规状态。绿色=合规，红色=违规，显示违规成分数。
+    </p>
+    <div id="overviewGrid"></div>
+  </div>
+
+  <!-- Tab: Single Category Detail -->
+  <div class="tab-content" id="tab-detail">
+    <div class="form-row" style="margin-bottom:12px">
+      <div class="form-group">
+        <label>查看类目</label>
+        <select id="detailCategory" onchange="renderDetailTab()"></select>
+      </div>
+    </div>
+    <div id="detailContent"></div>
+  </div>
+
+  <!-- Tab: Limiters -->
+  <div class="tab-content" id="tab-limiters">
+    <p style="font-size:.85em;color:#8b7355;margin-bottom:8px">
+      每种天然香基在使用时，会被其含有的某一种受限成分"锁死"最大用量。
+      锁死 = IFRA限量 ÷ 该成分在香基中的浓度。
+    </p>
+    <div id="limitersContent"></div>
+  </div>
+
+</div>
+
+</div>
+
+<script>
+// ============================================================================
+// DATA: IFRA 12 Categories
+// ============================================================================
+const IFRA_CATEGORIES = {
+  "1":  "唇部产品、玩具 (Lip products, toys)",
+  "2":  "体香剂/止汗剂 (Deodorants, antiperspirants)",
+  "3":  "水醇类洗去型 (Hydroalcoholic rinse-off: hand sanitizer, facial cleanser)",
+  "4":  "香水/淡香精 (Fine fragrance: EDP, EDT, perfume)",
+  "5A": "身体乳-驻留型 (Body lotion — leave-on)",
+  "5B": "面霜-驻留型 (Face cream — leave-on)",
+  "5C": "手霜-驻留型 (Hand cream — leave-on)",
+  "5D": "婴儿霜/湿巾 (Baby creams, wipes — leave-on)",
+  "6":  "漱口水/牙膏 (Mouthwash, toothpaste — rinse-off)",
+  "7A": "护发素-驻留型 (Hair conditioner — leave-on)",
+  "7B": "洗发水-洗去型 (Shampoo — rinse-off)",
+  "8":  "沐浴露/洗手液 (Body wash, shower gel — rinse-off)",
+  "9":  "香皂 (Bar soap — rinse-off)",
+  "10A":"硬表面清洁剂 (Hard surface cleaners)",
+  "10B":"织物柔顺剂 (Fabric softeners)",
+  "11A":"空气喷雾 (Air care: aerosol/spray)",
+  "11B":"藤条扩香 (Reed diffusers, liquid refills)",
+  "12": "蜡烛 (Candles)",
+};
+
+// ============================================================================
+// DATA: IFRA 51 Restrictions — Auto-extracted from IFRA 51st Amendment (June 2023)
+// ============================================================================
+// Format: { CAS: { "4": max_pct, "3": max_pct, ... } }
+// "NR" = No Restriction (无限制)
+
+// DATA: IFRA 51 Restrictions — Auto-extracted from IFRA 51st Amendment (2023)
+// ============================================================================
+// Format: { CAS: { "4": max_pct, "3": max_pct, ... } }
+// "NR" = No Restriction (无限制). 共35种课程原料有限制.
+
+const IFRA_LIMITS = {
+  // 苯甲醇 (Benzyl Alcohol)
+  "100-51-6": {"1":0.45,"2":0.14,"3":0.34,"4":2.5,"5A":0.64,"5B":0.17,"5C":0.34,"5D":0.057,"6":1.5,"7A":0.68,"7B":0.68,"8":0.057,"9":2.2,"10A":2.2,"10B":8.5,"11A":0.057,"11B":0.057,"12":"NR"},
+  // ɑ-己基肉桂醛 (HCA(Hexyl Cinnamic Aldehyde))
+  "101-86-0": {"1":1.8,"2":0.53,"3":11,"4":9.9,"5A":2.5,"5B":2.5,"5C":2.5,"5D":2.5,"6":5.8,"7A":20,"7B":20,"8":1.0,"9":19,"10A":69,"10B":69,"11A":38,"11B":38,"12":"NR"},
+  // 环十五内酯 (Exaltolide Total)
+  "106-02-5": {"1":0.42,"2":0.13,"3":2.5,"4":2.4,"5A":0.60,"5B":0.60,"5C":0.60,"5D":0.20,"6":1.4,"7A":4.8,"7B":4.8,"8":0.20,"9":4.6,"10A":4.6,"10B":17,"11A":0.20,"11B":0.20,"12":0.24},
+  // 香茅醇 (Citronellol)
+  "106-22-9": {"1":2.2,"2":0.67,"3":13,"4":12,"5A":3.2,"5B":3.2,"5C":3.2,"5D":3.2,"6":7.3,"7A":25,"7B":25,"8":1.3,"9":24,"10A":87,"10B":87,"11A":48,"11B":48,"12":33},
+  // 香叶醇 (Geraniol)
+  "106-24-1": {"1":0.78,"2":0.25,"3":1.1,"4":4.7,"5A":1.2,"5B":0.78,"5C":0.94,"5D":0.26,"6":0.16,"7A":0.78,"7B":0.78,"8":0.26,"9":2.8,"10A":1.1,"10B":5.3,"11A":0.26,"11B":0.26,"12":"NR"},
+  // 对甲酚 (p-Cresol)
+  "106-44-5": {"1":0.0050,"2":0.0050,"3":0.0050,"4":0.0050,"5A":0.0050,"5B":0.0050,"5C":0.0050,"5D":0.0017,"6":0.0050,"7A":0.0050,"7B":0.0050,"8":0.0017,"9":0.0050,"10A":0.0050,"10B":0.0050,"11A":0.0017,"11B":0.0017,"12":"NR"},
+  // 羟基香茅醛 (Hydroxyl Citronellal)
+  "107-75-5": {"1":0.38,"2":0.11,"3":2.3,"4":2.1,"5A":0.53,"5B":0.53,"5C":0.53,"5D":0.18,"6":1.2,"7A":1.6,"7B":1.6,"8":0.18,"9":4.1,"10A":0.78,"10B":7.8,"11A":0.18,"11B":0.18,"12":"NR"},
+  // 柳酸苄酯 (Benzyl Salicylate)
+  "118-58-1": {"1":1.3,"2":0.39,"3":7.8,"4":7.3,"5A":1.9,"5B":1.9,"5C":1.9,"5D":1.9,"6":4.3,"7A":15,"7B":15,"8":0.77,"9":14,"10A":51,"10B":51,"11A":28,"11B":28,"12":"NR"},
+  // 大茴香醛 (Anisic Aldehyde)
+  "123-11-5": {"1":0.23,"2":0.080,"3":0.14,"4":1.4,"5A":0.38,"5B":0.093,"5C":0.14,"5D":0.031,"6":0.047,"7A":0.14,"7B":0.14,"8":0.031,"9":0.42,"10A":0.19,"10B":1.1,"11A":0.031,"11B":0.031,"12":31},
+  // 甲基紫罗兰酮 (Methyl Ionone)
+  "127-42-4": {"1":5.4,"2":1.6,"3":32,"4":30,"5A":7.6,"5B":7.6,"5C":7.6,"5D":7.6,"6":18,"7A":61,"7B":61,"8":3.2,"9":59,"10A":100,"10B":100,"11A":100,"11B":100,"12":"NR"},
+  // 异甲基紫罗兰酮70 (Isoraldeine 70)
+  "1335-46-2": {"1":5.4,"2":1.6,"3":32,"4":30,"5A":7.6,"5B":7.6,"5C":7.6,"5D":7.6,"6":18,"7A":61,"7B":61,"8":3.2,"9":59,"10A":100,"10B":100,"11A":100,"11B":100,"12":"NR"},
+  // 琥珀芯 (Amber Core)
+  "139504-68-0": {"1":0.24,"2":0.071,"3":1.4,"4":1.3,"5A":0.34,"5B":0.34,"5C":0.34,"5D":0.11,"6":0.75,"7A":2.7,"7B":2.7,"8":0.11,"9":2.6,"10A":4.5,"10B":9.3,"11A":0.11,"11B":0.11,"12":80},
+  // 龙蒿脑 (Estragole)
+  "140-67-0": {"1":0.00031,"2":0.0025,"3":0.00063,"4":0.014,"5A":0.0022,"5B":0.00063,"5C":0.00063,"5D":0.00021,"6":0.0019,"7A":0.00063,"7B":0.00063,"8":0.00021,"9":0.0041,"10A":0.00094,"10B":0.0022,"11A":0.00021,"11B":0.00021,"12":0.11},
+  // 甲位突厥酮 (ɑ-Damascone)
+  "24720-09-0": {"1":0.0077,"2":0.0023,"3":0.046,"4":0.043,"5A":0.011,"5B":0.011,"5C":0.011,"5D":0.011,"6":0.025,"7A":0.088,"7B":0.088,"8":0.0045,"9":0.084,"10A":0.30,"10B":0.30,"11A":0.17,"11B":0.17,"12":"NR"},
+  // 菠萝酯 (Allyl Cyclohexyl Propionate)
+  "2705-87-5": {"1":0.085,"2":0.025,"3":0.35,"4":0.47,"5A":0.12,"5B":0.12,"5C":0.12,"5D":0.040,"6":0.28,"7A":0.70,"7B":0.70,"8":0.040,"9":0.92,"10A":0.7,"10B":3.3,"11A":0.040,"11B":0.040,"12":"NR"},
+  // 柠檬醛 (Citral)
+  "5392-40-5": {"1":0.11,"2":0.032,"3":0.10,"4":0.60,"5A":0.15,"5B":0.15,"5C":0.15,"5D":0.051,"6":0.35,"7A":0.20,"7B":0.20,"8":0.051,"9":1.2,"10A":1.2,"10B":4.2,"11A":0.051,"11B":0.051,"12":"NR"},
+  // 龙涎酮 (Iso E Super)
+  "54464-57-2": {"1":0.41,"2":1.1,"3":0.41,"4":20,"5A":5.1,"5B":0.56,"5C":0.76,"5D":0.19,"6":0.0093,"7A":0.67,"7B":0.67,"8":0.19,"9":2.4,"10A":2.4,"10B":6.6,"11A":0.19,"11B":0.19,"12":"NR"},
+  // 康辛醛 (Canthoxal)
+  "5462-06-6": {"1":0.11,"2":0.14,"3":0.75,"4":2.5,"5A":0.64,"5B":0.64,"5C":0.64,"5D":0.21,"6":0.11,"7A":0.86,"7B":0.86,"8":0.21,"9":2.7,"10A":0.75,"10B":4.1,"11A":0.21,"11B":0.21,"12":"NR"},
+  // 檀香210 (Sandalore)
+  "65113-99-7": {"1":0.21,"2":0.062,"3":1.2,"4":1.2,"5A":0.29,"5B":0.29,"5C":0.29,"5D":0.29,"6":0.68,"7A":2.4,"7B":2.4,"8":0.12,"9":2.3,"10A":8.1,"10B":8.1,"11A":4.5,"11B":4.5,"12":"NR"},
+  // 女贞醛 (Triplal)
+  "68039-49-6": {"1":0.45,"2":0.14,"3":2.7,"4":2.5,"5A":0.64,"5B":0.64,"5C":0.64,"5D":0.64,"6":1.5,"7A":5.2,"7B":5.2,"8":0.27,"9":4.9,"10A":18,"10B":18,"11A":9.8,"11B":9.8,"12":"NR"},
+  // 精玫瑰醇 (Rhodinol Fine)
+  "6812-78-8": {"1":2.2,"2":0.67,"3":13,"4":12,"5A":3.2,"5B":3.2,"5C":3.2,"5D":3.2,"6":7.3,"7A":25,"7B":25,"8":1.3,"9":24,"10A":87,"10B":87,"11A":48,"11B":48,"12":33},
+  // 依兰油 (Ylang Complete)
+  "8006-81-3": {"1":0.13,"2":0.039,"3":0.78,"4":0.73,"5A":0.18,"5B":0.18,"5C":0.18,"5D":0.18,"6":0.43,"7A":1.5,"7B":1.5,"8":0.077,"9":1.4,"10A":5.1,"10B":5.1,"11A":2.8,"11B":2.8,"12":"NR"},
+  // 秘鲁香脂 (Peru Balsam Res.)
+  "8007-00-9": {"1":0.073,"2":0.022,"3":0.44,"4":0.41,"5A":0.10,"5B":0.10,"5C":0.10,"5D":0.034,"6":0.24,"7A":0.83,"7B":0.83,"8":0.034,"9":0.80,"10A":0.80,"10B":2.9,"11A":0.034,"11B":0.034,"12":"NR"},
+  // 柠檬油 (Lemon Oil)
+  "8008-56-8": {"1":2.0,"2":2.0,"3":2.0,"4":2.0,"5A":2.0,"5B":2.0,"5C":2.0,"5D":2.0,"6":2.0,"7A":"NR","7B":2.0,"8":2.0,"9":"NR","10A":"NR","10B":2.0,"11A":"NR","11B":2.0,"12":"NR"},
+  // 枯茗油 (Cumin Oil)
+  "8014-13-9": {"1":0.40,"2":0.40,"3":0.40,"4":0.40,"5A":0.40,"5B":0.40,"5C":0.40,"5D":0.40,"6":0.40,"7A":"NR","7B":0.40,"8":0.40,"9":"NR","10A":"NR","10B":0.40,"11A":"NR","11B":0.40,"12":"NR"},
+  // 大花茉莉净油 (Jasmine Abs. Egypt)
+  "8022-96-6": {"1":0.11,"2":0.032,"3":0.65,"4":0.60,"5A":0.15,"5B":0.15,"5C":0.15,"5D":0.15,"6":0.35,"7A":1.2,"7B":1.2,"8":0.063,"9":1.2,"10A":4.2,"10B":4.2,"11A":2.3,"11B":2.3,"12":"NR"},
+  // 苏合香浸膏 (Styrax Extract)
+  "8046-19-3": {"1":0.12,"2":0.034,"3":0.69,"4":0.64,"5A":0.16,"5B":0.16,"5C":0.16,"5D":0.16,"6":0.38,"7A":1.3,"7B":1.3,"8":0.068,"9":1.3,"10A":4.5,"10B":4.5,"11A":2.5,"11B":2.5,"12":"NR"},
+  // 酮麝香 (Musk Ketone)
+  "81-14-1": {"1":0.18,"2":0.053,"3":0.11,"4":0.99,"5A":0.25,"5B":0.21,"5C":0.25,"5D":0.071,"6":0.58,"7A":0.32,"7B":0.32,"8":0.071,"9":0.75,"10A":0.75,"10B":3.7,"11A":0.071,"11B":0.071,"12":58},
+  // 2-(甲氨基)苯甲酸甲酯 (Dimethyl Anthranilate)
+  "85-91-6": {"1":0.10,"2":0.10,"3":0.10,"4":0.10,"5A":0.10,"5B":0.10,"5C":0.10,"5D":0.10,"6":0.50,"7A":0.50,"7B":0.10,"8":0.10,"9":0.50,"10A":0.50,"10B":0.10,"11A":"NR","11B":0.10,"12":"NR"},
+  // 香柠檬油 (Bergamot EO)
+  "89957-91-5": {"1":0.40,"2":0.40,"3":0.40,"4":0.40,"5A":0.40,"5B":0.40,"5C":0.40,"5D":0.40,"6":0.40,"7A":"NR","7B":0.40,"8":0.40,"9":"NR","10A":"NR","10B":0.40,"11A":"NR","11B":0.40,"12":"NR"},
+  // 橡苔浸膏 (Oakmoss Res.)
+  "9000-50-4": {"1":0.020,"2":0.016,"3":0.10,"4":0.10,"5A":0.076,"5B":0.076,"5C":0.076,"5D":0.076,"6":0.18,"7A":0.10,"7B":0.10,"8":0.032,"9":0.10,"10A":0.10,"10B":0.10,"11A":0.10,"11B":0.10,"12":"NR"},
+  // 白柠檬油 (Lime EO)
+  "90063-52-8": {"1":0.70,"2":0.70,"3":0.70,"4":0.70,"5A":0.70,"5B":0.70,"5C":0.70,"5D":0.70,"6":0.70,"7A":0.50,"7B":0.70,"8":0.70,"9":0.50,"10A":0.50,"10B":0.70,"11A":"NR","11B":0.70,"12":"NR"},
+  // 香豆素 (Coumarin)
+  "91-64-5": {"1":0.089,"2":0.080,"3":0.089,"4":1.5,"5A":0.38,"5B":0.11,"5C":0.16,"5D":0.035,"6":0.0024,"7A":0.18,"7B":0.18,"8":0.035,"9":0.52,"10A":0.52,"10B":1.6,"11A":0.035,"11B":0.035,"12":33},
+  // 小花茉莉净油 (Jasmine Sambac Absolute)
+  "91770-14-8": {"1":0.68,"2":0.20,"3":4.1,"4":3.8,"5A":0.96,"5B":0.96,"5C":0.96,"5D":0.96,"6":2.2,"7A":7.7,"7B":7.7,"8":0.40,"9":7.4,"10A":26,"10B":26,"11A":15,"11B":15,"12":"NR"},
+  // 丁香酚 (Eugenol)
+  "97-53-0": {"1":0.45,"2":0.14,"3":1.0,"4":2.5,"5A":0.64,"5B":0.64,"5C":0.64,"5D":0.21,"6":1.5,"7A":2.0,"7B":2.0,"8":0.21,"9":4.9,"10A":4.0,"10B":18,"11A":0.21,"11B":0.21,"12":"NR"},
+};
+
+// ============================================================================
+// DATA: Preset Ingredient Library (IFF Bases + Synthetics)
+// ============================================================================
+const PRESET_LIBRARY = {
+  "十一醛": {type:"synthetic", cas:"112-44-7", substance_name:"Aldehyde C11", abc:"A"},
+  "正癸醛": {type:"synthetic", cas:"112-31-2", substance_name:"Aldehyde C10", abc:"A"},
+  "十一烯醛": {type:"synthetic", cas:"112-45-8", substance_name:"Aldehyde C11 Undecylenic", abc:"A"},
+  "十二醛": {type:"synthetic", cas:"112-54-9", substance_name:"Aldehyde C12", abc:"A"},
+  "异十一烯醛": {type:"synthetic", cas:"1337-83-3", substance_name:"Aldehyde iso C11", abc:"A"},
+  "樟脑": {type:"synthetic", cas:"21368-68-3", substance_name:"Camphor Synthetic", abc:"B"},
+  "桉叶素": {type:"synthetic", cas:"470-82-6", substance_name:"Eucalyptol", abc:"B"},
+  "留兰香油": {type:"natural", cas:"8008-79-5", abc:"B", note:"天然原料 — 需MSDS"},
+  "乙酸龙脑酯": {type:"synthetic", cas:"76-49-3", substance_name:"Bornyl Acetate", abc:"K"},
+  "澳洲尤加利精油": {type:"natural", cas:"8000-48-4", abc:"H", note:"天然原料 — 需MSDS"},
+  "香柠檬精油": {type:"natural", cas:"", abc:"C", note:"天然原料 — 需MSDS"},
+  "柠檬精油": {type:"natural", cas:"", abc:"C", note:"天然原料 — 需MSDS"},
+  "二氢月桂烯醇": {type:"synthetic", cas:"18479-58-8", substance_name:"Dihydro Myrcenol", abc:"C"},
+  "柠檬烯": {type:"synthetic", cas:"5989-27-5", substance_name:"D-limonene", abc:"C"},
+  "苦橙花油": {type:"natural", cas:"8016-38-4", abc:"C", note:"天然原料 — 需MSDS"},
+  "γ-壬内酯(椰子醛)": {type:"synthetic", cas:"104-61-0", substance_name:"γ-Nonalactone(C18)", abc:"D"},
+  "丙位癸内酯": {type:"synthetic", cas:"706-14-9", substance_name:"γ-Decalactone", abc:"D"},
+  "丙位十一内酯": {type:"synthetic", cas:"104-67-6", substance_name:"γ-Undecalactone", abc:"F"},
+  "迪果基": {type:"base", abc:"F", note:"香基 — 需IFRA声明"},
+  "丁酸苄酯": {type:"synthetic", cas:"103-37-7", substance_name:"Benzyl Butyrate", abc:"F"},
+  "格力克力二恶茂烷": {type:"synthetic", cas:"68901-32-6", substance_name:"Glycolierral", abc:"C"},
+  "波洁红醛": {type:"synthetic", cas:"18127-01-0", substance_name:"Bourgeonal", abc:"M"},
+  "ɑ-己基肉桂醛": {type:"synthetic", cas:"101-86-0", substance_name:"HCA(Hexyl Cinnamic Aldehyde)", abc:"J"},
+  "格篷浸膏": {type:"natural", cas:"9000-24-2", abc:"G", note:"天然原料 — 需MSDS"},
+  "乙酸苏合香酯": {type:"synthetic", cas:"93-92-5", substance_name:"Styrallyl Acetate", abc:"G"},
+  "橙叶油": {type:"natural", cas:"8016-44-2", abc:"G", note:"天然原料 — 需MSDS"},
+  "女贞醛": {type:"synthetic", cas:"68039-49-6", substance_name:"Triplal", abc:"G"},
+  "柳酸叶醇酯": {type:"synthetic", cas:"65405-77-8", substance_name:"cis-3-Hexenyl Salicylate", abc:"O"},
+  "新洋茉莉醛": {type:"synthetic", cas:"1205-17-0", substance_name:"Helional", abc:"G"},
+  "格蓬酯": {type:"synthetic", cas:"67634-00-8", substance_name:"Allyl Amyl Glycolate", abc:"F"},
+  "叶醇": {type:"synthetic", cas:"928-96-1", substance_name:"Cis-3-Hexenol", abc:"G"},
+  "法国梅耶薰衣草": {type:"natural", cas:"8000-28-0", abc:"H", note:"天然原料 — 需MSDS"},
+  "香桃木": {type:"natural", cas:"8008-46-6", abc:"H", note:"天然原料 — 需MSDS"},
+  "二甲基庚醇": {type:"synthetic", cas:"13254-34-7", substance_name:"Dimetol", abc:"H"},
+  "鼠尾草油": {type:"natural", cas:"8022-56-8", abc:"H", note:"天然原料 — 需MSDS"},
+  "穗薰衣草油": {type:"natural", cas:"8022-15-9", abc:"H", note:"天然原料 — 需MSDS"},
+  "香紫苏油": {type:"natural", cas:"8016-63-5", abc:"H", note:"天然原料 — 需MSDS"},
+  "圆叶当归": {type:"natural", cas:"8016-31-7", abc:"H", note:"天然原料 — 需MSDS"},
+  "甲基紫罗兰酮": {type:"synthetic", cas:"127-42-4", substance_name:"Methyl Ionone", abc:"I"},
+  "鸢尾浸膏": {type:"natural", cas:"8002-73-1", abc:"I", note:"天然原料 — 需MSDS"},
+  "甲位突厥酮": {type:"synthetic", cas:"24720-09-0", substance_name:"ɑ-Damascone", abc:"I"},
+  "甲位紫罗兰酮": {type:"synthetic", cas:"127-41-3", substance_name:"Alpha Ionone", abc:"I"},
+  "异甲基紫罗兰酮70": {type:"synthetic", cas:"1335-46-2", substance_name:"Isoraldeine 70", abc:"I"},
+  "大花茉莉香基": {type:"base", abc:"J", note:"香基 — 需IFRA声明"},
+  "大花茉莉净油": {type:"natural", cas:"8022-96-6", abc:"J", note:"天然原料 — 需MSDS"},
+  "柳酸苄酯": {type:"synthetic", cas:"118-58-1", substance_name:"Benzyl Salicylate", abc:"O"},
+  "乙酸苄酯": {type:"synthetic", cas:"140-11-4", substance_name:"Benzyl Acetate", abc:"J"},
+  "二氢茉莉酮酸甲酯": {type:"synthetic", cas:"24851-98-7", substance_name:"Hedione", abc:"J"},
+  "顺式茉莉酮": {type:"synthetic", cas:"488-10-8", substance_name:"Cis Jasmone", abc:"J"},
+  "吲哚": {type:"synthetic", cas:"120-72-9", substance_name:"Indole", abc:"J"},
+  "杜松子油": {type:"natural", cas:"8002-68-4", abc:"K", note:"天然原料 — 需MSDS"},
+  "甲位松油醇": {type:"synthetic", cas:"98-55-5", substance_name:"Alpha Terpineol", abc:"K"},
+  "艾蒿油": {type:"natural", cas:"8008-93-3", abc:"H", note:"天然原料 — 需MSDS"},
+  "天然龙脑": {type:"synthetic", cas:"507-70-0", substance_name:"Borneol Natural", abc:"B"},
+  "花梨木精油": {type:"natural", cas:"8015-77-8", abc:"I", note:"天然原料 — 需MSDS"},
+  "乙基芳樟醇": {type:"synthetic", cas:"10339-55-6", substance_name:"Ethyl Linalool", abc:"L"},
+  "乙酸乙基方樟酯": {type:"synthetic", cas:"61931-80-4", substance_name:"Ethyl Linalyl Acetate", abc:"L"},
+  "芳樟醇": {type:"synthetic", cas:"78-70-6", substance_name:"Linalool", abc:"L"},
+  "乙酸方樟酯": {type:"synthetic", cas:"115-95-7", substance_name:"Linalyl Acetate", abc:"L"},
+  "羟基香茅醛": {type:"synthetic", cas:"107-75-5", substance_name:"Hydroxyl Citronellal", abc:"M"},
+  "白花醇": {type:"synthetic", cas:"63500-71-0", substance_name:"Florol", abc:"M"},
+  "🔴铃兰醛(禁用)": {type:"synthetic", cas:"80-54-6", substance_name:"Lilial", abc:"M"},
+  "🔴新铃兰醛(禁用)": {type:"synthetic", cas:"31906-04-4", substance_name:"Lyral", abc:"M"},
+  "铃兰香基": {type:"base", abc:"M", note:"香基 — 需IFRA声明"},
+  "依兰油": {type:"natural", cas:"8006-81-3", abc:"N", note:"天然原料 — 需MSDS"},
+  "2-(甲氨基)苯甲酸甲酯": {type:"synthetic", cas:"85-91-6", substance_name:"Dimethyl Anthranilate", abc:"N"},
+  "水杨酸异辛酯": {type:"synthetic", cas:"118-60-5", substance_name:"2-Ethylhexyl Salicylate", abc:"O"},
+  "柳酸戊酯": {type:"synthetic", cas:"2050-08-0", substance_name:"Amyl Salicylate", abc:"O"},
+  "龙蒿油": {type:"natural", cas:"8016-88-4", abc:"P", note:"天然原料 — 需MSDS"},
+  "对甲酚": {type:"synthetic", cas:"106-44-5", substance_name:"p-Cresol", abc:"P"},
+  "八角茴香油": {type:"natural", cas:"", abc:"P", note:"天然原料 — 需MSDS"},
+  "康辛醛": {type:"synthetic", cas:"5462-06-6", substance_name:"Canthoxal", abc:"P"},
+  "大茴香醛": {type:"synthetic", cas:"123-11-5", substance_name:"Anisic Aldehyde", abc:"P"},
+  "秘鲁香脂": {type:"natural", cas:"8007-00-9", abc:"Q", note:"天然原料 — 需MSDS"},
+  "乳香油": {type:"natural", cas:"8016-36-2", abc:"Q", note:"天然原料 — 需MSDS"},
+  "苏合香浸膏": {type:"natural", cas:"8046-19-3", abc:"Q", note:"天然原料 — 需MSDS"},
+  "安息香树脂": {type:"natural", cas:"9000-72-0", abc:"Q", note:"天然原料 — 需MSDS"},
+  "大马士革玫瑰净油": {type:"natural", cas:"8007-01-0", abc:"R", note:"天然原料 — 需MSDS"},
+  "精玫瑰醇": {type:"synthetic", cas:"6812-78-8", substance_name:"Rhodinol Fine", abc:"R"},
+  "乙酸香叶酯": {type:"synthetic", cas:"105-87-3", substance_name:"Geranyl Acetate", abc:"R"},
+  "香叶醇": {type:"synthetic", cas:"106-24-1", substance_name:"Geraniol", abc:"R"},
+  "苯乙醇": {type:"synthetic", cas:"60-12-8", substance_name:"Phenyl Ethyl Alcohol(PEA)", abc:"R"},
+  "玫瑰醚": {type:"synthetic", cas:"16409-43-1", substance_name:"Rose Oxide", abc:"R"},
+  "玫瑰精油": {type:"base", abc:"R", note:"香基 — 需IFRA声明"},
+  "玫瑰香基": {type:"base", abc:"R", note:"香基 — 需IFRA声明"},
+  "香叶油": {type:"natural", cas:"8000-46-2", abc:"R", note:"天然原料 — 需MSDS"},
+  "芫荽籽油": {type:"natural", cas:"8008-52-4", abc:"S", note:"天然原料 — 需MSDS"},
+  "芹菜籽油": {type:"natural", cas:"8015-90-5", abc:"S", note:"天然原料 — 需MSDS"},
+  "小豆蔻油": {type:"natural", cas:"8000-66-6", abc:"S", note:"天然原料 — 需MSDS"},
+  "肉桂叶油": {type:"natural", cas:"8015-91-6", abc:"S", note:"天然原料 — 需MSDS"},
+  "枯茗油": {type:"natural", cas:"8014-13-9", abc:"S", note:"天然原料 — 需MSDS"},
+  "众香籽油": {type:"natural", cas:"8006-77-7", abc:"S", note:"天然原料 — 需MSDS"},
+  "肉豆蔻油": {type:"natural", cas:"8008-45-5", abc:"S", note:"天然原料 — 需MSDS"},
+  "丁香酚": {type:"synthetic", cas:"97-53-0", substance_name:"Eugenol", abc:"S"},
+  "桦焦油": {type:"natural", cas:"8001-88-5", abc:"T", note:"天然原料 — 需MSDS"},
+  "灵猫净油": {type:"natural", cas:"68916-26-7", abc:"U", note:"天然原料 — 需MSDS"},
+  "海狸香净油": {type:"natural", cas:"8023-83-4", abc:"U", note:"天然原料 — 需MSDS"},
+  "降龙涎醚": {type:"synthetic", cas:"6790-58-5", substance_name:"Ambroxan", abc:"U"},
+  "岩蔷薇油": {type:"natural", cas:"8016-26-0", abc:"U", note:"天然原料 — 需MSDS"},
+  "琥珀芯": {type:"synthetic", cas:"139504-68-0", substance_name:"Amber Core", abc:"W"},
+  "异丁基喹啉": {type:"synthetic", cas:"93-19-6", substance_name:"Isobutyl Quinoline", abc:"U"},
+  "乙基香兰素": {type:"synthetic", cas:"121-32-4", substance_name:"Ethyl Vanillin", abc:"V"},
+  "香豆素": {type:"synthetic", cas:"91-64-5", substance_name:"Coumarin", abc:"V"},
+  "馥合洋茉莉醛": {type:"synthetic", cas:"", substance_name:"Heliotropex", abc:"Q", note:"缺CAS号"},
+  "零陵香豆净油": {type:"natural", cas:"8046-22-8", abc:"V", note:"天然原料 — 需MSDS"},
+  "香草精油": {type:"natural", cas:"121-33-5", abc:"V", note:"天然原料 — 需MSDS"},
+  "香荚兰浓缩浸液": {type:"natural", cas:"", abc:"V", note:"天然原料 — 需MSDS"},
+  "乙基麦芽酚": {type:"synthetic", cas:"4940-11-8", substance_name:"Ethyl Maltol", abc:"V"},
+  "麦芽酚": {type:"synthetic", cas:"118-71-8", substance_name:"Maltol", abc:"V"},
+  "广藿香油": {type:"natural", cas:"84238-39-1", abc:"W", note:"天然原料 — 需MSDS"},
+  "乙酸香根酯": {type:"synthetic", cas:"115724-27-1", substance_name:"Vetiver Acetate", abc:"W"},
+  "橡苔浸膏": {type:"natural", cas:"9000-50-4", abc:"Y", note:"天然原料 — 需MSDS"},
+  "白檀醇": {type:"synthetic", cas:"28219-61-6", substance_name:"Bacdanol", abc:"W"},
+  "白檀香油": {type:"natural", cas:"8006-87-9", abc:"W", note:"天然原料 — 需MSDS"},
+  "香根油": {type:"natural", cas:"8016-96-4", abc:"W", note:"天然原料 — 需MSDS"},
+  "乙酸愈创木酯": {type:"synthetic", cas:"9433-88-7", substance_name:"Guaiyl Acetate", abc:"W"},
+  "乙酸柏木酯": {type:"synthetic", cas:"77-54-3", substance_name:"Cedryl Acetate", abc:"W"},
+  "檀香210": {type:"synthetic", cas:"65113-99-7", substance_name:"Sandalore", abc:"W"},
+  "檀香醚": {type:"synthetic", cas:"41890-92-0", substance_name:"Florsantol", abc:"W"},
+  "黑檀醇": {type:"synthetic", cas:"67801-20-1", substance_name:"Ebanol", abc:"W"},
+  "龙涎酮": {type:"synthetic", cas:"54464-57-2", substance_name:"Iso E Super", abc:"W"},
+  "广藿香醇": {type:"synthetic", cas:"5986-55-0", substance_name:"Patchouli Alcohol", abc:"W"},
+  "新喀里多尼亚檀香油": {type:"natural", cas:"1070895-66-7", abc:"W", note:"天然原料 — 需MSDS"},
+  "加菲力士": {type:"synthetic", cas:"36306-87-3", substance_name:"Kephalis", abc:"W"},
+  "甲基柏木酮": {type:"synthetic", cas:"32388-55-9", substance_name:"Methyl Cedryl Ketone", abc:"W"},
+  "弗吉尼亚柏木油": {type:"natural", cas:"8000-27-9", abc:"W", note:"天然原料 — 需MSDS"},
+  "酮麝香": {type:"synthetic", cas:"81-14-1", substance_name:"Musk Ketone", abc:"X"},
+  "麝香T": {type:"synthetic", cas:"105-95-3", substance_name:"Musk T", abc:"X"},
+  "环十五内酯": {type:"synthetic", cas:"106-02-5", substance_name:"Exaltolide Total", abc:"X"},
+  "环十五烯内酯": {type:"synthetic", cas:"111879-80-2", substance_name:"Habanolide", abc:"X"},
+  "吐纳麝香": {type:"synthetic", cas:"21145-77-7", substance_name:"Tonalide", abc:"X"},
+  "佳乐麝香50% IPM": {type:"synthetic", cas:"1222-05-5", substance_name:"Galaxolide 50% IPM", abc:"X"},
+  "合成橡苔": {type:"synthetic", cas:"4707-47-5", substance_name:"Evernyl", abc:"Y"},
+  "卡龙": {type:"synthetic", cas:"28940-11-6", substance_name:"Calone", abc:"Y"},
+  "汉克林D": {type:"synthetic", cas:"8050-15-5", substance_name:"Hercolyn D-E", abc:"Q"},
+  "苯甲醇": {type:"synthetic", cas:"100-51-6", substance_name:"Benzyl Alcohol", abc:"Z"},
+  "麝香酮": {type:"synthetic", cas:"541-91-3", substance_name:"Muscone", abc:""},
+  "海菲麝香": {type:"synthetic", cas:"141773-73-1", substance_name:"Helvotolide", abc:""},
+  "灵猫酮": {type:"synthetic", cas:"542-46-1", substance_name:"Civetone", abc:""},
+  "甲位紫罗兰酮": {type:"synthetic", cas:"24190-29-2", substance_name:"Alpha Ionone", abc:""},
+  "雪松醇/柏木醇": {type:"synthetic", cas:"77-53-2", substance_name:"Cedrol", abc:""},
+  "辛醇": {type:"synthetic", cas:"111-87-5", substance_name:"Alcohol C-8 Octanol", abc:""},
+  "柠檬醛": {type:"synthetic", cas:"5392-40-5", substance_name:"Citral", abc:""},
+  "丁位癸内酯": {type:"synthetic", cas:"705-86-2", substance_name:"Delta Decalactone", abc:""},
+  "藏红花酸乙酯": {type:"synthetic", cas:"35044-59-8", substance_name:"Ethyl Safranate", abc:""},
+  "菠萝酯": {type:"synthetic", cas:"2705-87-5", substance_name:"Allyl Cyclohexyl Propionate", abc:""},
+  "🔴铃兰醛(已禁用!)": {type:"synthetic", cas:"55877-88-8", substance_name:"Lilial", abc:""},
+  "邻氨基苯甲酸甲酯": {type:"synthetic", cas:"134-09-8", substance_name:"Methyl Anthranilate", abc:""},
+  "龙蒿脑": {type:"synthetic", cas:"140-67-0", substance_name:"Estragole", abc:""},
+  "香茅醇": {type:"synthetic", cas:"106-22-9", substance_name:"Citronellol", abc:""},
+  "异丁基喹啉": {type:"synthetic", cas:"68141-26-4", substance_name:"Isobutyl Quinoline", abc:""},
+  "羟基香茅醇": {type:"synthetic", cas:"107-74-4", substance_name:"Hydroxyl Citronellol", abc:""},
+  "乙酸苯乙酯": {type:"synthetic", cas:"103-45-7", substance_name:"Phenylethyl Acetate", abc:""},
+  "橙花醇": {type:"synthetic", cas:"106-25-2", substance_name:"Nerol", abc:""},
+  "甜橙油": {type:"natural", cas:"8008-57-9", abc:"", note:"天然原料 — 需MSDS"},
+  "没药": {type:"natural", cas:"9000-45-7", abc:"", note:"天然原料 — 需MSDS"},
+  "小花茉莉净油": {type:"natural", cas:"91770-14-8", abc:"", note:"天然原料 — 需MSDS"},
+  "蜂蜜油": {type:"natural", cas:"8012-89-3", abc:"", note:"天然原料 — 需MSDS"},
+  "大西洋雪松精油": {type:"natural", cas:"8023-85-6", abc:"", note:"天然原料 — 需MSDS"},
+  "德克萨斯柏木油": {type:"natural", cas:"68990-83-0", abc:"", note:"天然原料 — 需MSDS"},
+  "格蓬": {type:"natural", cas:"8023-91-4", abc:"", note:"天然原料 — 需MSDS"},
+  "椒样薄荷油": {type:"natural", cas:"8006-90-4", abc:"", note:"天然原料 — 需MSDS"},
+  "香柠檬油": {type:"natural", cas:"89957-91-5", abc:"", note:"天然原料 — 需MSDS"},
+  "迷迭香油": {type:"natural", cas:"8000-25-7", abc:"", note:"天然原料 — 需MSDS"},
+  "丁香花蕾": {type:"natural", cas:"8015-97-2", abc:"", note:"天然原料 — 需MSDS"},
+  "松针油": {type:"natural", cas:"8000-26-8", abc:"", note:"天然原料 — 需MSDS"},
+  "丝柏油": {type:"natural", cas:"8013-86-3", abc:"", note:"天然原料 — 需MSDS"},
+  "罗勒油": {type:"natural", cas:"8015-73-4", abc:"", note:"天然原料 — 需MSDS"},
+  "烟草净油": {type:"natural", cas:"8037-19-2", abc:"", note:"天然原料 — 需MSDS"},
+  "白柠檬油": {type:"natural", cas:"90063-52-8", abc:"", note:"天然原料 — 需MSDS"},
+  "苦橙叶油": {type:"natural", cas:"8014-17-3", abc:"", note:"天然原料 — 需MSDS"},
+  "柠檬油": {type:"natural", cas:"8008-56-8", abc:"", note:"天然原料 — 需MSDS"},
+  "天竺葵": {type:"natural", cas:"8006-46-2", abc:"", note:"天然原料 — 需MSDS"},
+  "灵猫香基": {type:"base", abc:"", note:"香基 — 需IFRA声明"},
+  "海狸香基": {type:"base", abc:"", note:"香基 — 需IFRA声明"},
+  "草莓香基": {type:"base", abc:"", note:"香基 — 需IFRA声明"},
+  "橙花油相香基": {type:"base", abc:"", note:"香基 — 需IFRA声明"},
+  "圆柚香基": {type:"base", abc:"", note:"香基 — 需IFRA声明"},
+  "茉莉香基": {type:"base", abc:"", note:"香基 — 需IFRA声明"},
+  "依兰依兰香基": {type:"base", abc:"", note:"香基 — 需IFRA声明"},
+  "玫瑰香基(Givco)": {type:"base", abc:"", note:"香基 — 需IFRA声明"},
+  "麝香酊剂": {type:"natural", cas:"", abc:"", note:"天然原料 — 需MSDS"},
+  "龙涎香酊剂": {type:"natural", cas:"", abc:"", note:"天然原料 — 需MSDS"},
+  "蹄兔香": {type:"natural", cas:"", abc:"", note:"天然原料 — 需MSDS"}
+};
+
+// ============================================================================
+// STATE: Current Formula
+// ============================================================================
+let formula = [];
+
+// Preload demo formula
+function loadDemo() {
+  formula = [
+    {name:"完全依兰油 Ylang Ylang", pct:5.0, type:"natural"},
+    {name:"甜橙油 Sweet Orange", pct:8.0, type:"natural"},
+    {name:"香柠檬油 Bergamot EO", pct:6.0, type:"natural"},
+    {name:"龙涎酮 Iso E Super", pct:3.0, type:"synthetic", cas:"54464-57-2", substance_name:"Iso E Super"},
+    {name:"香豆素 Coumarin", pct:0.3, type:"synthetic", cas:"91-64-5", substance_name:"Coumarin"},
+    {name:"香叶醇 Geraniol", pct:1.0, type:"synthetic", cas:"106-24-1", substance_name:"Geraniol"},
+    {name:"芳樟醇 Linalool", pct:2.0, type:"synthetic", cas:"78-70-6", substance_name:"Linalool"},
+  ];
+  renderFormula();
+  updateIngredientSelect();
+}
+
+// ============================================================================
+// UI FUNCTIONS
+// ============================================================================
+
+// ABC分类标签
+const ABC_LABELS = {
+  'A':'Alifatic 脂肪醛','B':'iceBerg 冰凉薄荷','C':'Citrus 柑橘','D':'Dairy 奶香','E':'Edible 食用',
+  'F':'Fruit 果香','G':'Green 绿香','H':'Herb 草本','I':'Iris 鸢尾紫罗兰','J':'Jasmin 茉莉白花',
+  'K':'Konifer 松柏','L':'Linalool 芳樟','M':'Muguet 铃兰','N':'Narcotic 迷醉白花',
+  'O':'Orchid  orchid水杨酸','P':'Phenol 酚类辛甜','Q':'Queen 膏香树脂','R':'Rose 玫瑰',
+  'S':'Spice 辛香','T':'Tar 烟熏焦油','U':'Urine 动物粪便','V':'Vanilla 香草豆香',
+  'W':'Wood 木香','X':'X-rated 麝香','Y':'mossY 橡苔海洋','Z':'Zolvent 溶剂',
+};
+
+const VOL_MAP = {"A": ["前"], "B": ["前"], "C": ["前"], "G": ["前"], "H": ["前"], "F": ["中"], "I": ["中"], "J": ["中"], "L": ["中"], "M": ["中"], "N": ["中"], "P": ["中"], "R": ["中"], "S": ["中"], "E": ["中"], "Q": ["后"], "T": ["后"], "U": ["后"], "V": ["后"], "W": ["后"], "X": ["后"], "Y": ["后"], "K": ["前", "中"], "D": ["中", "后"], "O": ["中", "后"], "Z": []};
+
+let activeVolFilter = null;
+
+function setVolFilter(vol) {
+  activeVolFilter = vol;
+  activeAbcFilter = null;
+  activeTypeFilter = null;
+  renderAbcFilters();
+  filterIngredients();
+}
+
+let activeAbcFilter = null;
+let activeTypeFilter = null; // 'synthetic', 'natural', 'base', null=all
+
+function updateIngredientSelect() {
+  renderAbcFilters();
+  filterIngredients();
+}
+
+let showAbc = false;
+
+function renderAbcFilters() {
+  const div = document.getElementById('abcFilters');
+  const abcSet = new Set();
+  Object.values(PRESET_LIBRARY).forEach(d => { if(d.abc) abcSet.add(d.abc); });
+  
+  // Primary: type filter + clear
+  let html = '';
+  html += `<span class="abc-chip ${!activeAbcFilter && !activeTypeFilter && !activeVolFilter ? 'active' : ''}" onclick="setAbcFilter(null)" style="cursor:pointer;padding:3px 8px;border-radius:12px;font-size:.75em;border:1.5px solid ${!activeAbcFilter&&!activeTypeFilter?'#8b5e3c':'#ddd'};margin:2px;${!activeAbcFilter&&!activeTypeFilter?'background:#8b5e3c;color:#fff;font-weight:700':''}">全部</span>`;
+  html += `<span class="abc-chip ${activeTypeFilter==='synthetic' ? 'active' : ''}" onclick="setTypeFilter('synthetic')" style="cursor:pointer;padding:3px 8px;border-radius:12px;font-size:.75em;background:#e8f4e8;border:1.5px solid ${activeTypeFilter==='synthetic'?'#2d7d2d':'#c8e0c8'};margin:2px;${activeTypeFilter==='synthetic'?'font-weight:700':''}">🧪 合成</span>`;
+  html += `<span class="abc-chip ${activeTypeFilter==='natural' ? 'active' : ''}" onclick="setTypeFilter('natural')" style="cursor:pointer;padding:3px 8px;border-radius:12px;font-size:.75em;background:#fef9e7;border:1.5px solid ${activeTypeFilter==='natural'?'#b8860b':'#f0d78c'};margin:2px;${activeTypeFilter==='natural'?'font-weight:700':''}">🌿 天然</span>`;
+  html += `<span class="abc-chip ${activeTypeFilter==='base' ? 'active' : ''}" onclick="setTypeFilter('base')" style="cursor:pointer;padding:3px 8px;border-radius:12px;font-size:.75em;background:#e8e0f4;border:1.5px solid ${activeTypeFilter==='base'?'#5b3d8b':'#d4c8e8'};margin:2px;${activeTypeFilter==='base'?'font-weight:700':''}">📦 香基</span>`;
+  
+  // Volatility filter (前中后调)
+  html += `<span style="font-size:.7em;color:#ccc;padding:2px 4px">|</span>`;
+  html += `<span class="abc-chip ${activeVolFilter==='前' ? 'active' : ''}" onclick="setVolFilter('前')" style="cursor:pointer;padding:3px 8px;border-radius:12px;font-size:.75em;border:1.5px solid ${activeVolFilter==='前'?'#8b5e3c':'#e8e8e8'};margin:2px;${activeVolFilter==='前'?'background:#8b5e3c;color:#fff;font-weight:700':''}">🍃 前调</span>`;
+  html += `<span class="abc-chip ${activeVolFilter==='中' ? 'active' : ''}" onclick="setVolFilter('中')" style="cursor:pointer;padding:3px 8px;border-radius:12px;font-size:.75em;border:1.5px solid ${activeVolFilter==='中'?'#8b5e3c':'#e8e8e8'};margin:2px;${activeVolFilter==='中'?'background:#8b5e3c;color:#fff;font-weight:700':''}">🌸 中调</span>`;
+  html += `<span class="abc-chip ${activeVolFilter==='后' ? 'active' : ''}" onclick="setVolFilter('后')" style="cursor:pointer;padding:3px 8px;border-radius:12px;font-size:.75em;border:1.5px solid ${activeVolFilter==='后'?'#8b5e3c':'#e8e8e8'};margin:2px;${activeVolFilter==='后'?'background:#8b5e3c;color:#fff;font-weight:700':''}">🪵 后调</span>`;
+  
+  // ABC toggle
+  html += `<span onclick="showAbc=!showAbc;renderAbcFilters()" style="cursor:pointer;padding:3px 6px;border-radius:12px;font-size:.7em;color:#8b7355;border:1px dashed #d4c4b0;margin:2px;user-select:none">🔤 香调分类 ${showAbc?'▾':'▸'}</span>`;
+  
+  // ABC chips (collapsible)
+  if (showAbc) {
+    html += '<div style="width:100%;margin-top:4px;padding-top:4px;border-top:1px dashed #e8d5c4">';
+    [...abcSet].sort().forEach(a => {
+      const label = ABC_LABELS[a] || a;
+      const isActive = activeAbcFilter === a;
+      // Count ingredients in this category
+      const catCount = Object.values(PRESET_LIBRARY).filter(v => v.abc === a).length;
+      html += `<span class="abc-chip" onclick="setAbcFilter('${a}')" style="cursor:pointer;padding:2px 6px;border-radius:10px;font-size:.7em;border:1px solid ${isActive?'#8b5e3c':'#e8e8e8'};margin:1px;${isActive?'background:#8b5e3c;color:#fff;font-weight:700':''}">${a} ${label} ${catCount}</span>`;
+    });
+    html += '</div>';
+  }
+  
+  div.innerHTML = html;
+}
+
+function setAbcFilter(abc) {
+  activeAbcFilter = abc;
+  activeTypeFilter = null;
+  activeVolFilter = null;
+  renderAbcFilters();
+  filterIngredients();
+}
+
+function setTypeFilter(type) {
+  activeTypeFilter = type;
+  activeAbcFilter = null;
+  activeVolFilter = null;
+  renderAbcFilters();
+  filterIngredients();
+}
+
+function filterIngredients() {
+  try {
+  const sel = document.getElementById('ingredientSelect');
+  const query = (document.getElementById('ingredientSearch')?.value || '').toLowerCase();
+  
+  let items = Object.entries(PRESET_LIBRARY);
+  
+  // Apply volatility filter
+  if (activeVolFilter) {
+    items = items.filter(([k,v]) => {
+      const vols = VOL_MAP[v.abc] || [];
+      return vols.includes(activeVolFilter);
+    });
+  }
+  
+  // Apply ABC filter
+  if (activeAbcFilter) {
+    items = items.filter(([k,v]) => v.abc === activeAbcFilter);
+  }
+  
+  // Apply type filter
+  if (activeTypeFilter) {
+    items = items.filter(([k,v]) => v.type === activeTypeFilter);
+  }
+  
+  // Apply search
+  if (query) {
+    items = items.filter(([k,v]) => {
+      const searchStr = (k + ' ' + (v.cas||'') + ' ' + (v.substance_name||'')).toLowerCase();
+      return searchStr.includes(query);
+    });
+  }
+  
+  // Render options
+  sel.innerHTML = '';
+  if (items.length === 0) {
+    sel.innerHTML = '<option value="">— 无匹配原料 —</option>';
+  } else if (items.length > 50) {
+    sel.innerHTML = '<option value="">— 请继续筛选或搜索 (' + items.length + '种) —</option>';
+  }
+  
+  const typeIcons = {synthetic:'🧪', natural:'🌿', base:'📦'};
+  const typeLabels = {synthetic:'合成', natural:'天然', base:'香基'};
+  
+  items.forEach(([name, data]) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    const icon = typeIcons[data.type] || '•';
+    const abcl = data.abc ? ' ['+data.abc+']' : '';
+    const casStr = data.cas ? ' CAS:'+data.cas : '';
+    const warn = data.type === 'natural' ? ' ⚠️需MSDS' : '';
+    const ban = name.includes('🔴') ? ' 🚫禁用' : '';
+    opt.textContent = `${icon} ${name}${abcl}${casStr}${warn}${ban}`;
+    sel.appendChild(opt);
+  });
+  } catch(e) { console.error('Render error:', e); }
+}
+
+function addIngredient() {
+  const sel = document.getElementById('ingredientSelect');
+  const pctInput = document.getElementById('ingredientPct');
+  const name = sel.value;
+  const pct = parseFloat(pctInput.value);
+
+  if (!name) { alert('请选择原料'); return; }
+  if (!pct || pct <= 0 || pct > 100) { alert('请输入有效用量 (0.01-100%)'); return; }
+
+  const libData = PRESET_LIBRARY[name];
+  if (!libData) return;
+
+  formula.push({
+    name: name,
+    pct: pct,
+    type: libData.type,
+    data: libData,
+    cas: libData.cas || '',
+    substance_name: libData.substance_name || name,
+    abc: libData.abc || '',
+  });
+
+  sel.value = '';
+  pctInput.value = '1.0';
+  renderFormula();
+}
+
+function addIngredientToCart() {
+  const sel = document.getElementById('ingredientSelect');
+  const name = sel.value;
+  if (!name) { alert('请先在列表中选择原料'); return; }
+  const libData = PRESET_LIBRARY[name];
+  if (!libData) return;
+  addToCart(name, libData.cas || '', libData.type);
+  sel.value = '';
+  document.getElementById('ingredientSearch').value = '';
+  filterIngredients();
+  // Show confirmation
+  alert('✅ 已加入购物车: ' + name);
+}
+
+function addIngredientToCart() {
+  var sel = document.getElementById('ingredientSelect');
+  var name = sel.value;
+  if (!name || name === '') { alert('请先在列表中选择原料'); return; }
+  var libData = PRESET_LIBRARY[name];
+  if (!libData) { alert('未找到原料数据'); return; }
+  addToCart(name, libData.cas || '', libData.type);
+  alert('✅ 已加入购物车: ' + name);
+  sel.value = '';
+  document.getElementById('ingredientSearch').value = '';
+  filterIngredients();
+}
+
+function addCustomIngredient() {
+  const name = prompt('原料名称（如：保加利亚玫瑰原精）:');
+  if (!name) return;
+  const cas = prompt('CAS号（如不确定可填"待审核"）:');
+  if (!cas) return;
+  const pct = parseFloat(prompt('用量 (%):', '1.0'));
+  if (!pct || pct <= 0) return;
+
+  // For custom naturals: ask for key restricted constituents
+  const constituentStr = prompt(
+    '受限成分及含量（可选，格式：CAS=含量% 分号分隔）:\n' +
+    '例：97-54-1=0.5; 97-53-0=0.3',
+    ''
+  );
+
+  let constituents = [];
+  if (constituentStr && constituentStr.trim()) {
+    constituents = constituentStr.split(';').map(s => {
+      const [c, v] = s.trim().split('=');
+      return {cas: c.trim(), pct: parseFloat(v)};
+    }).filter(c => c.cas && c.pct > 0);
+  }
+
+  formula.push({
+    name: name,
+    pct: pct,
+    type: 'custom',
+    cas: cas,
+    customConstituents: constituents,
+  });
+
+  renderFormula();
+}
+
+function removeIngredient(idx) {
+  formula.splice(idx, 1);
+  renderFormula();
+}
+
+function renderFormula() {
+  const div = document.getElementById('formulaList');
+  const total = formula.reduce((s,i) => s + i.pct, 0);
+
+  if (formula.length === 0) {
+    div.innerHTML = '<p style="color:#999;font-size:.85em">尚未添加原料。请从原料库选择或添加自定义原料。</p>';
+  } else {
+    div.innerHTML = formula.map((item, idx) => {
+      let typeBadge = '';
+      if (item.type === 'synthetic') typeBadge = '<span class="type-badge type-synthetic">合成单体</span>';
+      else if (item.type === 'base') typeBadge = '<span class="type-badge type-base">香基</span>';
+      else if (item.type === 'natural') typeBadge = '<span class="type-badge type-custom">🌿 天然 (需MSDS)</span>';
+      else typeBadge = '<span class="type-badge type-custom">自定义 ⚠️</span>';
+
+      let extra = '';
+      if (item.type === 'custom' && item.customConstituents && item.customConstituents.length > 0) {
+        extra = `<span style="font-size:.75em;color:#b8860b"> (${item.customConstituents.length}个受限成分)</span>`;
+      } else if (item.type === 'custom') {
+        extra = `<span style="font-size:.75em;color:#e74c3c"> ⚠️ 缺少MSDS数据</span>`;
+      }
+
+      return `
+        <div class="ingredient-row">
+          <span class="name">${item.name}<button onclick="addToCart('${item.name.replace(/'/g, "\'")}', '${(item.cas||'').replace(/'/g, "\'")}', '${item.type}')" title="加入购物车" style="background:none;border:none;cursor:pointer;font-size:.85em;padding:0 0 0 4px;opacity:.3;transition:opacity .2s" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.3'">🛒</button></span>${extra}
+          ${typeBadge}
+          <span style="font-weight:700;min-width:50px;text-align:right">${item.pct.toFixed(1)}%</span>
+          <button class="btn btn-danger" onclick="removeIngredient(${idx})">✕</button>
+        </div>`;
+    }).join('');
+  }
+
+  document.getElementById('totalPct').textContent = `总用量: ${total.toFixed(1)}%`;
+}
+
+// ============================================================================
+// COMPLIANCE ENGINE (JavaScript)
+// ============================================================================
+
+function runCheck() {
+  if (formula.length === 0) { alert('请先添加原料'); return; }
+
+  const results = {};
+
+  // Check each category
+  for (const [cat, catName] of Object.entries(IFRA_CATEGORIES)) {
+    if (cat === '5D' || cat === '10B') continue; // skip sub-categories for demo
+
+    const contributions = {};
+
+    for (const item of formula) {
+      if (item.type === 'synthetic') {
+        const cas = item.cas;
+        if (!cas) continue;
+        if (!contributions[cas]) contributions[cas] = {total:0, substance_name:item.substance_name||cas, sources:[]};
+        contributions[cas].total += item.pct;
+        contributions[cas].sources.push({from:item.name, contribution:item.pct});
+      }
+      else if (item.type === 'natural') {
+        // Natural ingredients: can't calculate without MSDS data
+        // Flag as needing documentation
+        if (!contributions['__NATURAL_WARNING__']) contributions['__NATURAL_WARNING__'] = {total:0, substance_name:'(天然原料)', sources:[]};
+        contributions['__NATURAL_WARNING__'].sources.push({from:item.name, contribution:item.pct});
+      }
+      else if (item.type === 'base' && item.data && item.data.constituents) {
+        for (const c of item.data.constituents) {
+          const cas = c.cas;
+          const contrib = item.pct * c.pct / 100.0;
+          if (!contributions[cas]) contributions[cas] = {total:0, substance_name:c.name, sources:[]};
+          contributions[cas].total += contrib;
+          contributions[cas].sources.push({from:item.name, contribution:contrib});
+        }
+      }
+      else if (item.type === 'custom' && item.customConstituents) {
+        for (const c of item.customConstituents) {
+          const contrib = item.pct * c.pct / 100.0;
+          if (!contributions[c.cas]) contributions[c.cas] = {total:0, substance_name:'(custom)', sources:[]};
+          contributions[c.cas].total += contrib;
+          contributions[c.cas].sources.push({from:item.name, contribution:contrib});
+        }
+      }
+    }
+
+    // Classify
+    const violations = [];
+    const passes = [];
+
+    for (const [cas, data] of Object.entries(contributions)) {
+      if (data.total < 0.00001) continue;
+      const limit = (IFRA_LIMITS[cas] || {})[cat];
+
+      if (limit === undefined) {
+        passes.push({cas, substance:data.substance_name, total_pct:data.total, status:'unrestricted', sources:data.sources});
+      } else if (data.total > limit) {
+        violations.push({
+          cas, substance:data.substance_name, total_pct:data.total,
+          ifra_limit:limit, over_by:data.total - limit,
+          over_pct:(data.total-limit)/limit*100, sources:data.sources,
+        });
+      } else {
+        passes.push({
+          cas, substance:data.substance_name, total_pct:data.total,
+          ifra_limit:limit, usage_pct:data.total/limit*100,
+          margin:limit - data.total, status:'pass', sources:data.sources,
+        });
+      }
+    }
+
+    // Calculate limiting factors for bases
+    const limiters = {};
+    for (const item of formula) {
+      if (item.type !== 'base' || !item.data || !item.data.constituents) continue;
+      const constraints = [];
+      for (const c of item.data.constituents) {
+        const limit = (IFRA_LIMITS[c.cas] || {})[cat];
+        if (limit === undefined || c.pct === 0) continue;
+        const maxUse = limit / (c.pct / 100.0);
+        constraints.push({constituent:c.name, cas:c.cas, conc_in_base:c.pct, ifra_limit:limit, max_base_usage:maxUse});
+      }
+      if (constraints.length > 0) {
+        constraints.sort((a,b) => a.max_base_usage - b.max_base_usage);
+        const t = constraints[0];
+        limiters[item.name] = {
+          current_usage:item.pct,
+          limiting_constituent:t.constituent,
+          max_allowed:t.max_base_usage,
+          ok: item.pct <= t.max_base_usage,
+          all_constraints:constraints,
+        };
+      }
+    }
+
+    results[cat] = {
+      cat, catName,
+      contributions, violations, passes, limiters,
+      total_checked: violations.length + passes.length,
+      compliant: violations.length === 0,
+    };
+  }
+
+  // Store and render
+  window._lastResults = results;
+  document.getElementById('results').style.display = 'block';
+  renderOverview(results);
+  renderDetailTab();
+  renderLimiters(results);
+
+  // Scroll to results
+  document.getElementById('results').scrollIntoView({behavior:'smooth'});
+}
+
+function renderOverview(results) {
+  const grid = document.getElementById('overviewGrid');
+
+  let html = '<div class="category-grid">';
+
+  for (const [cat, r] of Object.entries(results)) {
+    const isCompliant = r.compliant;
+    const bg = isCompliant ? '#eafaf1' : '#fdedec';
+    const border = isCompliant ? '#27ae60' : '#e74c3c';
+    const icon = isCompliant ? '✅' : '🔴';
+    const info = isCompliant
+      ? `全部${r.total_checked}项通过`
+      : `${r.violations.length}/${r.total_checked}项违规`;
+
+    // Find worst violation
+    let worstPct = 0;
+    for (const v of r.violations) {
+      if (v.over_pct > worstPct) worstPct = v.over_pct;
+    }
+
+    html += `
+      <div onclick="focusCategory('${cat}')" class="cat-chip" style="background:${bg};border-color:${border};cursor:pointer">
+        <strong>Cat.${cat}</strong>
+        <div style="font-size:.7em;opacity:.7">${IFRA_CATEGORIES[cat].substring(0,30)}</div>
+        <span class="limit" style="color:${isCompliant?'#27ae60':'#e74c3c'}">${icon} ${info}</span>
+        ${!isCompliant ? `<div style="font-size:.7em;color:#e74c3c">最严重 +${worstPct.toFixed(0)}%</div>` : ''}
+      </div>`;
+  }
+
+  html += '</div>';
+  grid.innerHTML = html;
+
+  // Verdict box
+  const allCompliant = Object.values(results).every(r => r.compliant);
+  const failCount = Object.values(results).filter(r => !r.compliant).length;
+
+  document.getElementById('verdictBox').innerHTML = allCompliant
+    ? `<div class="verdict pass"><div class="icon">✅</div><div class="msg">全部类目合规</div><div style="opacity:.7">该配方在所有IFRA类目下均通过检查</div></div>`
+    : `<div class="verdict fail"><div class="icon">🔴</div><div class="msg">${failCount}个类目存在违规</div><div style="opacity:.7">请点击违规类目查看详情并调整配方</div></div>`;
+}
+
+function focusCategory(cat) {
+  document.getElementById('detailCategory').value = cat;
+  renderDetailTab();
+  // Switch to detail tab
+  switchTab('detail');
+}
+
+function renderDetailTab() {
+  const cat = document.getElementById('detailCategory').value || '4';
+  const r = window._lastResults ? window._lastResults[cat] : null;
+
+  // Update select options
+  const sel = document.getElementById('detailCategory');
+  sel.innerHTML = Object.entries(IFRA_CATEGORIES).map(([c, name]) => {
+    const isFail = r && !r.compliant;
+    return `<option value="${c}" ${c===cat?'selected':''}>${isFail?'🔴':''} Cat.${c} — ${name}</option>`;
+  }).join('');
+
+  if (!r) return;
+
+  const content = document.getElementById('detailContent');
+
+  const allItems = [
+    ...r.violations.map(v => ({...v, _type:'violation'})),
+    ...r.passes.sort((a,b) => b.total_pct - a.total_pct).map(p => ({...p, _type:'pass'})),
+  ];
+
+  let html = `
+    <p style="font-size:.85em;color:#8b7355;margin-bottom:8px">
+      追踪到 <strong>${r.total_checked}</strong> 种受限/可标注物质，
+      <span style="color:#e74c3c">${r.violations.length} 项违规</span>，
+      <span style="color:#27ae60">${r.passes.length} 项通过</span>
+    </p>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>受限物质</th><th>CAS</th><th>配方中总量%</th><th>IFRA限量%</th><th>使用率</th><th>状态</th>
+      </tr></thead>
+      <tbody>`;
+
+  for (const item of allItems) {
+    const rowClass = item._type === 'violation' ? 'violation-row' : '';
+
+    let statusHtml, usedHtml, limitHtml;
+    if (item._type === 'violation') {
+      statusHtml = `<span style="color:#e74c3c;font-weight:700">🔴 超标 +${item.over_pct.toFixed(0)}%</span>`;
+      usedHtml = `${(100+item.over_pct).toFixed(0)}%`;
+      limitHtml = `<strong>${item.ifra_limit.toFixed(1)}%</strong>`;
+    } else if (item.status === 'unrestricted') {
+      statusHtml = '<span style="color:#999">◌ 无限制</span>';
+      usedHtml = '—';
+      limitHtml = '—';
+    } else {
+      const pct = item.usage_pct || 0;
+      const barW = Math.max(2, pct * 0.8);
+      statusHtml = `<span style="color:#27ae60">✅</span> <span class="pass-bar-bg"><span class="pass-bar" style="width:${barW}px"></span></span>`;
+      usedHtml = `${pct.toFixed(0)}%`;
+      limitHtml = `${item.ifra_limit.toFixed(1)}%`;
+    }
+
+    // Sources on hover
+    const sourcesTitle = (item.sources||[]).map(s => `${s.from}: ${s.contribution.toFixed(4)}%`).join('\n');
+
+    html += `
+      <tr class="${rowClass}" title="${sourcesTitle.replace(/"/g,'&quot;')}">
+        <td>${item.substance}</td>
+        <td style="font-family:monospace;font-size:.8em">${item.cas}</td>
+        <td>${item.total_pct.toFixed(4)}%</td>
+        <td>${limitHtml}</td>
+        <td>${usedHtml}</td>
+        <td>${statusHtml}</td>
+      </tr>`;
+  }
+
+  html += '</tbody></table></div>';
+
+  // Warning about custom ingredients
+  const customItems = formula.filter(i => i.type === 'custom' && (!i.customConstituents || i.customConstituents.length === 0));
+  if (customItems.length > 0) {
+    html += `<div class="limiter-box" style="margin-top:12px">
+      ⚠️ <strong>注意：</strong>以下自定义原料缺少MSDS数据，未纳入合规计算：
+      ${customItems.map(i => i.name).join('、')}
+    </div>`;
+  }
+
+  content.innerHTML = html;
+}
+
+function renderLimiters(results) {
+  const content = document.getElementById('limitersContent');
+  const cat = document.getElementById('detailCategory').value || '4';
+  const r = results[cat];
+
+  if (!r || Object.keys(r.limiters).length === 0) {
+    content.innerHTML = '<p style="color:#999">配方中没有使用天然香基。</p>';
+    return;
+  }
+
+  let html = `<p style="font-size:.85em;color:#8b7355;margin-bottom:8px">
+    以下为 Cat.${cat} (${IFRA_CATEGORIES[cat]}) 下的限制因子计算。
+    <br>公式：最大用量 = IFRA限量 ÷ 该成分在香基中的浓度
+  </p>`;
+
+  for (const [name, lf] of Object.entries(r.limiters)) {
+    const icon = lf.ok ? '✅' : '🔴';
+    const bg = lf.ok ? '#eafaf1' : '#fdedec';
+    html += `
+      <div class="limiter-box" style="background:${bg}">
+        <strong>📦 ${name}</strong> — 当前用量 <strong>${lf.current_usage}%</strong>
+        <br>🔒 锁死因素: <strong style="color:#e74c3c">${lf.limiting_constituent}</strong>
+        <br>📏 最大允许用量: <strong>${lf.max_allowed.toFixed(1)}%</strong>
+        &nbsp; ${icon} ${lf.ok ? 'OK' : '必须降至 ≤' + lf.max_allowed.toFixed(1) + '%'}
+        ${lf.all_constraints.length > 1 ? `
+          <details style="margin-top:4px;font-size:.8em">
+            <summary>查看全部 ${lf.all_constraints.length} 个约束</summary>
+            ${lf.all_constraints.map(c =>
+              `${c.constituent}: 限量${c.ifra_limit}% ÷ 浓度${c.conc_in_base}% = 最大${c.max_base_usage.toFixed(1)}%`
+            ).join('<br>')}
+          </details>
+        ` : ''}
+      </div>`;
+  }
+
+  content.innerHTML = html;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ============================================================================
+// INIT
+// ============================================================================
+updateIngredientSelect();
+// Debug: check if select has options
+setTimeout(function() {
+  var sel = document.getElementById('ingredientSelect');
+  console.log('Select options after init:', sel.options.length);
+  if (sel.options.length <= 1) {
+    console.warn('⚠️ Select may be empty — forcing repopulation');
+    filterIngredients();
+  }
+}, 500);
+loadDemo();
+runCheck();
+
+
+// ============================================================================
+// SHOPPING CART
+// ============================================================================
+
+
+// Add 🛒 button to each ingredient row after it's added to formula
+// We'll hook into the existing renderFormula function
+
+
+
+// ========== SHOPPING CART (v2 clean) ==========
+let cart = JSON.parse(localStorage.getItem('ruby_cart_v2') || '[]');
+
+function saveCart() { localStorage.setItem('ruby_cart_v2', JSON.stringify(cart)); updateCartBadge(); }
+
+function addToCart(name, cas, ingType) {
+  var existing = cart.find(function(c) { return c.name === name; });
+  if (existing) { existing.qty += 1; }
+  else {
+    cart.push({
+      name: name, cas: cas || '', type: ingType || 'synthetic',
+      spec: ingType === 'natural' ? '10g' : '100g', qty: 1
+    });
+  }
+  saveCart();
+}
+
+function removeFromCart(idx) { cart.splice(idx, 1); saveCart(); renderCartPanel(); }
+function updateCartSpec(idx, field, value) {
+  if (field === 'qty') cart[idx].qty = Math.max(1, parseInt(value) || 1);
+  if (field === 'spec') cart[idx].spec = value;
+  saveCart();
+}
+
+function clearCart() { if (confirm('确定清空？')) { cart = []; saveCart(); } }
+
+function toggleCart() {
+  var p = document.getElementById('cartPanel');
+  p.classList.toggle('show');
+  if (p.classList.contains('show')) renderCartPanel();
+}
+
+function renderCartPanel() {
+  var list = document.getElementById('cartList');
+  if (cart.length === 0) {
+    list.innerHTML = '<p style="color:#999;text-align:center;padding:40px">购物车空空如也</p>';
+  } else {
+    list.innerHTML = cart.map(function(item, idx) {
+      var icon = item.type === 'natural' ? '🌿' : item.type === 'base' ? '📦' : '🧪';
+      var specs = item.type === 'natural' ? ['5g','10g','50g','100g','500g','1kg'] : ['10g','100g','500g','1kg','5kg'];
+      return '<div class="cart-item">'
+        + '<div class="cart-item-name">' + icon + ' ' + item.name + '</div>'
+        + '<div class="cart-item-spec">'
+        + '<select onchange="updateCartSpec(' + idx + ',\'spec\',this.value)">'
+        + specs.map(function(s) { return '<option ' + (item.spec===s?'selected':'') + '>' + s + '</option>'; }).join('')
+        + '</select>'
+        + ' × <input type="number" value="' + item.qty + '" min="1" max="99" onchange="updateCartSpec(' + idx + ',\'qty\',this.value)">'
+        + '</div>'
+        + '<button class="cart-remove" onclick="removeFromCart(' + idx + ')">✕</button>'
+        + '</div>';
+    }).join('');
+  }
+  document.getElementById('cartItemCount').textContent = cart.length;
+}
+
+function updateCartBadge() {
+  var total = cart.reduce(function(s,i) { return s + i.qty; }, 0);
+  var badge = document.getElementById('cartBadge');
+  badge.textContent = total;
+  badge.style.display = total > 0 ? 'flex' : 'none';
+}
+
+function addFormulaToCart() {
+  if (typeof formula === 'undefined' || formula.length === 0) { alert('配方中没有原料'); return; }
+  var added = 0;
+  formula.forEach(function(item) {
+    if (!cart.find(function(c) { return c.name === item.name; })) {
+      cart.push({name:item.name, cas:item.cas||'', type:item.type, spec:item.type==='natural'?'10g':'100g', qty:1});
+      added++;
+    }
+  });
+  saveCart();
+  if (added > 0) alert('✅ 已加入 ' + added + ' 种原料到购物车');
+  else alert('所有配方原料已在购物车中');
+}
+
+function checkout() {
+  if (cart.length === 0) { alert('购物车是空的'); return; }
+  var s = '🧪 Ruby调香合规工作台 — 原料采购清单\n';
+  s += '================================================\n\n';
+  cart.forEach(function(item, idx) {
+    s += (idx+1) + '. ' + item.name + ' | ' + item.type + ' | ' + item.spec + ' × ' + item.qty + '\n';
+  });
+  s += '\n共计: ' + cart.length + ' 种原料\n';
+  s += '\n💡 请发送给Ruby确认价格和库存。';
+  navigator.clipboard.writeText(s).then(function() {
+    alert('✅ 采购清单已复制到剪贴板！');
+  }).catch(function() {
+    alert(s);
+  });
+}
+
+// Click outside to close cart panel
+document.addEventListener('click', function(e) {
+  var panel = document.getElementById('cartPanel');
+  var fab = document.getElementById('cartFab');
+  if (panel && panel.classList.contains('show')) {
+    if (!panel.contains(e.target) && e.target !== fab && !fab.contains(e.target)) {
+      panel.classList.remove('show');
+    }
+  }
+});
+
+// Init cart on load
+updateCartBadge();
+
+</script>
+
+<div style="text-align:center;padding:24px;color:#999;font-size:.75em">
+  <p>⚠️ 本工具覆盖调香师国家职业标准（2025年版）中日用香料领域的合规要求，对接IFRA国际标准。 | IFRA限量数据为近似演示值，生产使用需加载官方IFRA 51标准。</p>
+  <p>Ruby 调香合规工作台 v0.3 — 全原料库版 · 基于IFRA 51 · 调香师国家职业标准（2025年版）配套工具</p>
+</div>
+
+</body>
+</html>
+<!-- CART FAB -->
+<button class="cart-fab" id="cartFab" onclick="toggleCart()">🛒 <span id="cartBadge" class="badge">0</span></button>
+
+<!-- CART PANEL -->
+<div class="cart-panel" id="cartPanel">
+  <div class="cart-panel-header">
+    <span>🛒 原料采购清单</span>
+    <button class="cart-close" onclick="toggleCart()">✕</button>
+  </div>
+  <div class="cart-list" id="cartList"><p style="color:#999;text-align:center;padding:40px">购物车空空如也</p></div>
+  <div class="cart-footer">
+    <div style="margin-bottom:8px"><strong>共 <span id="cartItemCount">0</span> 种</strong></div>
+    <div class="cart-note">💡 规格和价格以最终确认为准</div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-outline btn-sm" onclick="clearCart()" style="flex:0.4">清空</button>
+      <button class="btn btn-primary" onclick="checkout()" style="flex:1">📋 生成采购清单</button>
+    </div>
+  </div>
+</div>
+
+
